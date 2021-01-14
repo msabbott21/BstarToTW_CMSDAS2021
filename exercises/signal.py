@@ -237,6 +237,12 @@ def select(setname,year):
         elif "Mass" in varname :
             hist_tuple = (histname,histname,50,0,5000)
       #  print(varname)    
+        # elif "Pt" in varname :
+        #     hist_tuple = (histname,histname,30,400,2000)
+        # elif "msd" in varname :
+        #     hist_tuple = (histname,histname,30,40,200)
+        # else:
+        #     hist_tuple = (histname,histname,30,40,200)
         hist = a.GetActiveNode().DataFrame.Histo1D(hist_tuple,varname,'norm') # Project dataframe into a histogram (hist name/binning tuple, variable to plot from dataframe, weight)
         hist.GetValue() # This gets the actual TH1 instead of a pointer to the TH1
         out.Add(varname,hist) # Add it to our group
@@ -273,7 +279,6 @@ if __name__ == "__main__":
             inhist = infile.Get(key.GetName()) # get it from the file
             inhist.SetDirectory(0) # set the directory so hist is stored in memory and not as reference to TFile (this way it doesn't get tossed by python garbage collection when infile changes)
             histgroups[setname].Add(varname,inhist) # add to our group
-            print('add var  name for ',setname)
 
     # For each variable to plot...
     for varname in varnames.keys():
