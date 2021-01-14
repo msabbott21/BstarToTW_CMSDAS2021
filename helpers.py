@@ -9,7 +9,8 @@ def getNormFactor(setname,year,configPath):
     else: config = configPath
     cuts = config['CUTS'][year]
     lumi = config['lumi'+str(year)]
-    genEventCount = config['NEVENTS'][str(year)][setname]
+  #  genEventCount = config['NEVENTS'][str(year)][setname]
+    genEventCount = config['NEVENTS'][str(year)]
 
     # Deal with unique ttbar cases
     if setname == 'ttbar' and year == '16':
