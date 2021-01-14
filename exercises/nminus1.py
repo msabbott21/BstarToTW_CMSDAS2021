@@ -1,3 +1,4 @@
+
 '''
    Apply simple kinematic selection and plot variables for N-1 selections
    for signal and background MC and compare.
@@ -8,7 +9,7 @@ from optparse import OptionParser
 from collections import OrderedDict
 
 from TIMBER.Analyzer import analyzer, HistGroup, VarGroup, CutGroup
-from TIMBER.Tools.Common import CompileCpp, openJSON
+from TIMBER.Tools.Common import CompileCpp, OpenJSON
 from TIMBER.Tools.Plot import *
 import helpers
 
@@ -34,7 +35,7 @@ if not os.path.exists(plotdir):
     os.makedirs(plotdir)
 
 rootfile_path = 'root://cmsxrootd.fnal.gov///store/user/cmsdas/2021/long_exercises/BstarTW/rootfiles'
-config = openJSON('bstar_config.json')
+config = OpenJSON('bstar_config.json')
 cuts = config['CUTS'][options.year]
 
 CompileCpp("TIMBER/Framework/include/common.h")
@@ -43,6 +44,10 @@ CompileCpp('bstar.cc') # has the c++ functions we need when looping of the RData
 # Sets we want to process and some nice naming for our plots
 signal_names = ['signalLH%s'%(mass) for mass in [2000]]#range(1400,4200,600)]
 bkg_names = ['singletop_tW','singletop_tWB','ttbar','QCDHT700','QCDHT1000','QCDHT1500','QCDHT2000']
+
+##########MY ASSIGNED BACKGROUNDS##############
+#bkg_names = ['QCDHT1000','QCDHT1500']
+
 names = {
     "singletop_tW":"single top (tW)",
     "singletop_tWB":"single top (tW)",
@@ -76,7 +81,11 @@ prettynames = {
     'mW':'m_{W} [GeV]',
     'tau32':'#tau_{3} / #tau_{2}',
     'subjet_btag':'Sub-jet DeepCSV',
-    'mtop':'m_{top} [GeV]'
+    'mtop':'m_{top} [GeV]',
+    'lead_jet_deepAK8_MD_WvsQCD':'lead_jet_deepAK8_MD_WvsQCD',
+    'sublead_jet_deepAK8_MD_WvsQCD':'sublead_jet_deepAK8_MD_WvsQCD',
+    'lead_jet_deepAK8_MD_TvsQCD':'lead_jet_deepAK8_MD_TvsQCD',
+    'sublead_jet_deepAK8_MD_TvsQCD':'sublead_jet_deepAK8_MD_TvsQCD'
 }
 
 # Flags - https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2
@@ -106,7 +115,7 @@ def select(setname,year):
 
     # Determine normalization weight
     if not a.isData: 
-        norm = helpers.getNormFactor(setname,year,config,a.genEventCount)
+        norm = helpers.getNormFactor(setname,year,config)
     else: 
         norm = 1.
 
@@ -133,10 +142,10 @@ def select(setname,year):
     jets.Add('top_index',   'top_bit >= 0 ? jetIdx[top_bit] : -1')
     jets.Add('w_index',     'top_index == 0 ? jetIdx[1] : top_index == 1 ? jetIdx[0] : -1')
     # Calculate some new comlumns that we'd like to cut on (that were costly to do before the other filtering)
-    jets.Add("lead_vect",   "analyzer::TLvector(FatJet_pt[jetIdx[0]],FatJet_eta[jetIdx[0]],FatJet_phi[jetIdx[0]],FatJet_msoftdrop[jetIdx[0]])")
-    jets.Add("sublead_vect","analyzer::TLvector(FatJet_pt[jetIdx[1]],FatJet_eta[jetIdx[1]],FatJet_phi[jetIdx[1]],FatJet_msoftdrop[jetIdx[1]])")
+    jets.Add("lead_vect",   "hardware::TLvector(FatJet_pt[jetIdx[0]],FatJet_eta[jetIdx[0]],FatJet_phi[jetIdx[0]],FatJet_msoftdrop[jetIdx[0]])")
+    jets.Add("sublead_vect","hardware::TLvector(FatJet_pt[jetIdx[1]],FatJet_eta[jetIdx[1]],FatJet_phi[jetIdx[1]],FatJet_msoftdrop[jetIdx[1]])")
     jets.Add("deltaY",      "abs(lead_vect.Rapidity()-sublead_vect.Rapidity())")
-    jets.Add("mtw",         "analyzer::invariantMass(lead_vect,sublead_vect)")
+    jets.Add("mtw",         "hardware::invariantMass({lead_vect,sublead_vect})")
     
     #########
     # N - 1 #
@@ -147,18 +156,26 @@ def select(setname,year):
     plotting_vars.Add("tau32",       "FatJet_tau3[jetIdx[0]]/FatJet_tau2[jetIdx[0]]")
     plotting_vars.Add("subjet_btag", "max(SubJet_btagDeepB[FatJet_subJetIdx1[jetIdx[0]]],SubJet_btagDeepB[FatJet_subJetIdx2[jetIdx[0]]])")
     plotting_vars.Add("tau21",       "FatJet_tau2[jetIdx[1]]/FatJet_tau1[jetIdx[1]]")
+    plotting_vars.Add("lead_jet_deepAK8_MD_WvsQCD", "FatJet_deepTagMD_WvsQCD[jetIdx[0]]") 
+    plotting_vars.Add("sublead_jet_deepAK8_MD_WvsQCD", "FatJet_deepTagMD_WvsQCD[jetIdx[1]]") 
+    plotting_vars.Add("lead_jet_deepAK8_MD_TvsQCD", "FatJet_deepTagMD_TvsQCD[jetIdx[0]]") 
+    plotting_vars.Add("sublead_jet_deepAK8_MD_TvsQCD", "FatJet_deepTagMD_TvsQCD[jetIdx[1]]") 
 
     N_cuts = CutGroup('Ncuts') # cuts
     N_cuts.Add("deltaY_cut",      "deltaY<1.6")
     N_cuts.Add("mtop_cut",        "(mtop > 105.)&&(mtop < 220.)")
     N_cuts.Add("mW_cut",          "(mW > 65.)&&(mW < 105.)")
-    N_cuts.Add("tau32_cut",       "(tau32 > 0.0)&&(tau32 < %s)"%(cuts['tau32']))
-    N_cuts.Add("subjet_btag_cut", "(subjet_btag > %s)&&(subjet_btag < 1.)"%(cuts['sjbtag']))
-    N_cuts.Add("tau21_cut",       "(tau21 > 0.0)&&(tau21 < %s)"%(cuts['tau21']))
-
+    #N_cuts.Add("tau32_cut",       "(tau32 > 0.0)&&(tau32 < %s)"%(cuts['tau32']))
+    #N_cuts.Add("subjet_btag_cut", "(subjet_btag > %s)&&(subjet_btag < 1.)"%(cuts['sjbtag']))
+    #N_cuts.Add("tau21_cut",       "(tau21 > 0.0)&&(tau21 < %s)"%(cuts['tau21']))
+    N_cuts.Add("lead_jet_deepAK8_MD_WvsQCD_cut", "lead_jet_deepAK8_MD_WvsQCD > 0.9")
+    N_cuts.Add("sublead_jet_deepAK8_MD_WvsQCD_cut", "sublead_jet_deepAK8_MD_WvsQCD > 0.9")
+    N_cuts.Add("lead_jet_deepAK8_MD_TvsQCD_cut", "lead_jet_deepAK8_MD_TvsQCD > 0.9")
+    N_cuts.Add("sublead_jet_deepAK8_MD_TvsQCD_cut", "sublead_jet_deepAK8_MD_TvsQCD > 0.9")
+    
     # Organize N-1 of tagging variables when assuming top is always leading
     nodeToPlot = a.Apply([jets,plotting_vars])
-    nminus1Nodes = a.Nminus1(nodeToPlot,N_cuts) # constructs N nodes with a different N-1 selection for each
+    nminus1Nodes = a.Nminus1(N_cuts,nodeToPlot) # constructs N nodes with a different N-1 selection for each
     nminus1Hists = HistGroup('nminus1Hists')
     binning = {
         'mtop': [25,50,300],
@@ -166,7 +183,11 @@ def select(setname,year):
         'tau32': [20,0,1],
         'tau21': [20,0,1],
         'subjet_btag': [20,0,1],
-        'deltaY': [20,0,2.0]
+        'deltaY': [20,0,2.0],
+        'lead_jet_deepAK8_MD_WvsQCD': [20,0,1],
+        'sublead_jet_deepAK8_MD_WvsQCD': [20,0,1],
+        'lead_jet_deepAK8_MD_TvsQCD': [20,0,1],
+        'sublead_jet_deepAK8_MD_TvsQCD': [20,0,1]
     }
     # Add hists to group and write out
     for nkey in nminus1Nodes.keys():
@@ -176,7 +197,7 @@ def select(setname,year):
         hist = nminus1Nodes[nkey].DataFrame.Histo1D(hist_tuple,var,'norm')
         hist.GetValue()
         nminus1Hists.Add(var,hist)
-
+        a.PrintNodeTree('exercises/nminus1_tree.dot')
     # Return the group
     return nminus1Hists
 
