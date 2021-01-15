@@ -23,4 +23,4 @@ cd ../BstarToTW_CMSDAS2021
 echo python bs_select.py $*
 python bs_select.py $*
 
-xrdcp Presel_*.root root://cmseos.fnal.gov//store/user/msabbott/bstar_select_tau21/
+xrdcp Presel_*.root root://cmseos.fnal.gov//store/user/msabbott/bstar_select_deep/
