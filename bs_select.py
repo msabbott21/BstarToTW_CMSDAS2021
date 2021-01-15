@@ -136,13 +136,14 @@ def run(args):
     # Apply #
     #########
     a.Apply([jets,tagging_vars,jet_sel])
+    a.Define('norm',str(norm))
 
     # Finally discriminate on top tag
     final = a.Discriminate("top_tag_cut","top_tag==1")
 
     outfile = ROOT.TFile.Open('Presel_%s.root'%(setname),'RECREATE')
-    hpass = final["pass"].DataFrame.Histo2D(('MtwvMtPass','MtwvMtPass',60, 50, 350, 70, 500, 4000),'mtop','mtw')
-    hfail = final["fail"].DataFrame.Histo2D(('MtwvMtFail','MtwvMtFail',60, 50, 350, 70, 500, 4000),'mtop','mtw')
+    hpass = final["pass"].DataFrame.Histo2D(('MtwvMtPass','MtwvMtPass',60, 50, 350, 70, 500, 4000),'mtop','mtw','norm')
+    hfail = final["fail"].DataFrame.Histo2D(('MtwvMtFail','MtwvMtFail',60, 50, 350, 70, 500, 4000),'mtop','mtw','norm')
     outfile.cd()
     hpass.Write()
     hfail.Write()
